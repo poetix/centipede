@@ -2,15 +2,22 @@ package com.codepoetics.centipede
 
 import java.net.URI
 
-typealias Link = URI
+sealed class Link(val uri: URI, val shouldFollow: Boolean) {
+    data class SiteLink(val siteUri: URI) : Link(siteUri, true)
+    data class ExternalLink(val externalUri: URI) : Link(externalUri, false)
+}
+
 typealias LinkSet = Set<Link>
 typealias SiteMap = Map<URI, LinkSet>
 typealias PageVisitor = (URI) -> LinkSet
+typealias Domain = String
+typealias LinkClassifier = (Domain, URI) -> Link
 
 fun SiteMap.closure(pageVisitor: PageVisitor): SiteMap {
-    val visited = this.keys
+    val visitedUris = this.keys
     val linked = this.values.flatMap { it }.toSet()
-    val toVisit = linked - visited
+    val followableUris: Set<URI> = linked.filter { it.shouldFollow }.map { it.uri }.toSet()
+    val toVisit = followableUris - visitedUris
 
     if (toVisit.isEmpty()) {
         return this

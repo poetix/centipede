@@ -1,7 +1,10 @@
 package com.codepoetics.centipede
 
-import com.codepoetics.centipede.Builders.aUri
+import com.codepoetics.centipede.Builders.aSiteUri
+import com.codepoetics.centipede.Builders.anExternalUri
 import com.codepoetics.centipede.CentipedeMatchers.haveLinksFrom
+import com.codepoetics.centipede.Link.ExternalLink
+import com.codepoetics.centipede.Link.SiteLink
 import com.codepoetics.centipede.TestUtils.mock
 import io.kotlintest.matchers.Matchers
 import io.kotlintest.mock.`when`
@@ -13,58 +16,85 @@ import java.util.concurrent.atomic.AtomicLong
 class CentipedeTest : WordSpec() {
 
     val pageVisitor: PageVisitor = mock()
+    val linkClassifier: LinkClassifier = { domain, uri: URI ->
+        if (uri.host.equals(domain)) {
+            SiteLink(uri)
+        } else {
+            ExternalLink(uri)
+        }
+    }
+
     val crawler = Centipede(pageVisitor)
 
     init {
         "The crawler" should {
             "accept a URI and return a SiteMap with outbound links from that URI" {
-                val startUri = aUri()
+                val startUri = aSiteUri()
 
-                startUri.linksTo()
+                startUri.hasNoLinks()
 
-                crawler(startUri) should haveLinksFrom(startUri)
+                crawler(startUri) should haveLinksFrom(startUri to emptySet())
             }
 
             "return all the outbound links found on the page at the initial URI" {
-                val startUri = aUri()
-                val link1 = aUri()
-                val link2 = aUri()
+                val startUri = aSiteUri()
+                val link1 = aSiteUri()
+                val link2 = aSiteUri()
 
                 startUri.linksTo(link1, link2)
-                link1.linksTo()
-                link2.linksTo()
+                link1.hasNoLinks()
+                link2.hasNoLinks()
 
-                crawler(startUri) should haveLinksFrom(startUri to setOf(link1, link2))
+                crawler(startUri) should haveLinksFrom(
+                        startUri to setOf(SiteLink(link1), SiteLink(link2)),
+                        link1 to emptySet(),
+                        link2 to emptySet())
             }
 
             "follow outbound links" {
-                val homepage = aUri()
-                val bio = aUri()
-                val blogposts = aUri()
-                val linkedBlog = aUri()
+                val homepage = aSiteUri()
+                val bio = aSiteUri()
+                val blogposts = aSiteUri()
+                val linkedBlog = aSiteUri()
 
                 homepage.linksTo(bio, blogposts)
                 bio.linksTo(homepage)
                 blogposts.linksTo(homepage, linkedBlog)
-                linkedBlog.linksTo()
+                linkedBlog.hasNoLinks()
 
                 crawler(homepage) should haveLinksFrom(
-                        homepage to setOf(bio, blogposts),
-                        bio to setOf(homepage),
-                        blogposts to setOf(homepage, linkedBlog)
+                        homepage to setOf(SiteLink(bio), SiteLink(blogposts)),
+                        bio to setOf(SiteLink(homepage)),
+                        blogposts to setOf(SiteLink(homepage), SiteLink(linkedBlog)),
+                        linkedBlog to emptySet()
                 )
+            }
+
+            "not follow links to resources on other domains" {
+                val home = aSiteUri()
+                val away = anExternalUri()
+
+                home.linksTo(away)
+                away.hasNoLinks()
+
+                crawler(home) should haveLinksFrom(home to setOf(ExternalLink(away)))
+
             }
         }
     }
 
     fun URI.linksTo(vararg uris: URI): Unit {
-        `when`(pageVisitor(this)).thenReturn(setOf(*uris))
+        `when`(pageVisitor(this)).thenReturn(uris.map { linkClassifier("test.com", it) }.toSet())
     }
+
+    fun URI.hasNoLinks() { this.linksTo() }
 }
 
 object Builders {
     val nextId = AtomicLong()
-    fun aUri(): URI = URI.create("http://test.com/${nextId.incrementAndGet()}")
+
+    fun aSiteUri(): URI = URI.create("http://test.com/${nextId.incrementAndGet()}")
+    fun anExternalUri(): URI = URI.create("http://remote.com/${nextId.incrementAndGet()}")
 }
 
 object TestUtils {
@@ -72,11 +102,8 @@ object TestUtils {
 }
 
 object CentipedeMatchers : Matchers {
-    fun haveLinksFrom(uri: URI): (SiteMap) -> Unit = {
-        it should haveKey(uri)
-    }
-
     fun haveLinksFrom(vararg pairs: Pair<URI, LinkSet>): (SiteMap) -> Unit = { siteMap ->
+        siteMap.keys should haveSize(pairs.size)
         pairs.forEach { pair -> siteMap should contain(pair.first, pair.second) }
     }
 }
