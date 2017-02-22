@@ -8,11 +8,18 @@ sealed class Link(val uri: URI, val shouldFollow: Boolean) {
     data class ExternalLink(val externalUri: URI) : Link(externalUri, false)
 }
 
+typealias UriSet = Set<URI>
 typealias LinkSet = Set<Link>
 typealias SiteMap = Map<URI, LinkSet>
+typealias UriSetExtractor = (URI) -> UriSet
 typealias PageVisitor = (URI) -> LinkSet
-typealias Domain = String
 typealias LinkClassifier = (Domain, URI) -> Link
+
+fun UriSetExtractor.classifyingWith(linkClassifier: LinkClassifier): PageVisitor = { uri ->
+    this(uri).map { linkClassifier(uri.host, it) }.toSet()
+}
+
+typealias Domain = String
 
 fun SiteMap.closure(pageVisitor: PageVisitor): SiteMap {
     val visitedUris = this.keys
@@ -28,6 +35,8 @@ fun SiteMap.closure(pageVisitor: PageVisitor): SiteMap {
     return (this + newPages).closure(pageVisitor)
 }
 
-class Centipede(val pageVisitor: PageVisitor) {
+class Centipede(uriSetExtractor: UriSetExtractor, linkClassifier: LinkClassifier = SuffixAwareLinkClassifier()) {
+    val pageVisitor = uriSetExtractor.classifyingWith(linkClassifier)
+
     operator fun invoke(uri: URI): SiteMap = mapOf(uri to pageVisitor(uri)).closure(pageVisitor)
 }

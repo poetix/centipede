@@ -14,16 +14,9 @@ import java.util.concurrent.atomic.AtomicLong
 
 class CentipedeTest : WordSpec() {
 
-    val pageVisitor: PageVisitor = mock()
-    val linkClassifier: LinkClassifier = { domain, uri: URI ->
-        if (uri.host.equals(domain)) {
-            if (uri.path.endsWith(".ico")) StaticResource(uri) else SiteLink(uri)
-        } else {
-            ExternalLink(uri)
-        }
-    }
+    val uriSetExtractor: UriSetExtractor = mock()
 
-    val crawler = Centipede(pageVisitor)
+    val crawler = Centipede(uriSetExtractor)
 
     init {
         "The crawler" should {
@@ -86,36 +79,14 @@ class CentipedeTest : WordSpec() {
                 home.linksTo(favicon)
                 favicon.hasNoLinks()
 
-                println(linkClassifier("test.com", favicon))
                 crawler(home) should haveLinksFrom(home to setOf(StaticResource(favicon)))
             }
         }
     }
 
     fun URI.linksTo(vararg uris: URI): Unit {
-        `when`(pageVisitor(this)).thenReturn(uris.map { linkClassifier("test.com", it) }.toSet())
+        `when`(uriSetExtractor(this)).thenReturn(uris.toSet())
     }
 
     fun URI.hasNoLinks() { this.linksTo() }
-}
-
-object Builders {
-    val site = "test.com"
-    val remote = "remote.com"
-    val nextId = AtomicLong()
-
-    fun aSiteUri(): URI = URI.create("http://${site}/${nextId.incrementAndGet()}")
-    fun aSiteUri(path: String): URI = URI.create("http://${site}/${path}")
-    fun anExternalUri(): URI = URI.create("http://${remote}/${nextId.incrementAndGet()}")
-}
-
-object TestUtils {
-    fun <I, O, T : Function1<I, O>> mock() = Mockito.mock(Function1::class.java) as T
-}
-
-object CentipedeMatchers : Matchers {
-    fun haveLinksFrom(vararg pairs: Pair<URI, LinkSet>): (SiteMap) -> Unit = { siteMap ->
-        siteMap.keys should haveSize(pairs.size)
-        pairs.forEach { pair -> siteMap should contain(pair.first, pair.second) }
-    }
 }
