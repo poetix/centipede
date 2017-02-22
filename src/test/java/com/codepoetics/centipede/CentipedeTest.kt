@@ -5,12 +5,9 @@ import com.codepoetics.centipede.Builders.anExternalUri
 import com.codepoetics.centipede.CentipedeMatchers.haveLinksFrom
 import com.codepoetics.centipede.Link.*
 import com.codepoetics.centipede.TestUtils.mock
-import io.kotlintest.matchers.Matchers
 import io.kotlintest.mock.`when`
 import io.kotlintest.specs.WordSpec
-import org.mockito.Mockito
 import java.net.URI
-import java.util.concurrent.atomic.AtomicLong
 
 class CentipedeTest : WordSpec() {
 
