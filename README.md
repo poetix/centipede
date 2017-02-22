@@ -1,2 +1,3 @@
 # centipede
-A crawler
+
+A web crawler that remains within the bounds of a single domain.
