@@ -4,6 +4,7 @@ import java.net.URI
 
 sealed class Link(val uri: URI, val shouldFollow: Boolean) {
     data class SiteLink(val siteUri: URI) : Link(siteUri, true)
+    data class StaticResource(val resourceUri: URI): Link(resourceUri, false)
     data class ExternalLink(val externalUri: URI) : Link(externalUri, false)
 }
 

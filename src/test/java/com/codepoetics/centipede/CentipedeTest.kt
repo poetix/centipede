@@ -3,8 +3,7 @@ package com.codepoetics.centipede
 import com.codepoetics.centipede.Builders.aSiteUri
 import com.codepoetics.centipede.Builders.anExternalUri
 import com.codepoetics.centipede.CentipedeMatchers.haveLinksFrom
-import com.codepoetics.centipede.Link.ExternalLink
-import com.codepoetics.centipede.Link.SiteLink
+import com.codepoetics.centipede.Link.*
 import com.codepoetics.centipede.TestUtils.mock
 import io.kotlintest.matchers.Matchers
 import io.kotlintest.mock.`when`
@@ -18,7 +17,7 @@ class CentipedeTest : WordSpec() {
     val pageVisitor: PageVisitor = mock()
     val linkClassifier: LinkClassifier = { domain, uri: URI ->
         if (uri.host.equals(domain)) {
-            SiteLink(uri)
+            if (uri.path.endsWith(".ico")) StaticResource(uri) else SiteLink(uri)
         } else {
             ExternalLink(uri)
         }
@@ -78,7 +77,17 @@ class CentipedeTest : WordSpec() {
                 away.hasNoLinks()
 
                 crawler(home) should haveLinksFrom(home to setOf(ExternalLink(away)))
+            }
 
+            "not follow links to static resources" {
+                val home = aSiteUri()
+                val favicon = aSiteUri("favicon.ico")
+
+                home.linksTo(favicon)
+                favicon.hasNoLinks()
+
+                println(linkClassifier("test.com", favicon))
+                crawler(home) should haveLinksFrom(home to setOf(StaticResource(favicon)))
             }
         }
     }
@@ -91,10 +100,13 @@ class CentipedeTest : WordSpec() {
 }
 
 object Builders {
+    val site = "test.com"
+    val remote = "remote.com"
     val nextId = AtomicLong()
 
-    fun aSiteUri(): URI = URI.create("http://test.com/${nextId.incrementAndGet()}")
-    fun anExternalUri(): URI = URI.create("http://remote.com/${nextId.incrementAndGet()}")
+    fun aSiteUri(): URI = URI.create("http://${site}/${nextId.incrementAndGet()}")
+    fun aSiteUri(path: String): URI = URI.create("http://${site}/${path}")
+    fun anExternalUri(): URI = URI.create("http://${remote}/${nextId.incrementAndGet()}")
 }
 
 object TestUtils {
