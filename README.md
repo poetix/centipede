@@ -44,6 +44,8 @@ Some notable shortcomings:
 * Test-driven code gives way rather abruptly to an ugly spike as time runs out. There are a number of discrete components that could meaningfully be tested, and would undoubtedly be improved by being rewritten test-first.
 * It would have been nice to output a dotviz file to generate a prettier sitemap.
 * A default traversal depth of 5 links is currently hard-coded, along with a default thread pool size of 10 threads.
+* Traversal is implemented using recursion, annd traversal to unbounded depth risks blowing the stack. I haven't checked to see if Kotlin's tail-recursive functions could help here.
+* "closure", as in the transitive closure of a graph, isn't the most obvious name for the traversal function; here in particular some javadoc would have been helpful.
 
 Some notable oddities:
 
