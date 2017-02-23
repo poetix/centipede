@@ -11,7 +11,7 @@ import java.net.URI
 
 class CentipedeTest : WordSpec() {
 
-    val uriSetExtractor: UriSetExtractor = mock()
+    val uriSetExtractor: UriSetFetcher = mock()
 
     val crawler = Centipede(uriSetExtractor)
 
